@@ -19,22 +19,18 @@ def downsamplingdel(ar):
     newarr = np.delete(newarr, delstr,1)
     return newarr
 def downsamplingapprox(ar):
-    new = np.zeros(int(len(ar)/2)*int(len(ar[0])/2)*3)
-    new = np.reshape(new,(int(len(ar)/2),int(len(ar[0])/2),3))
+    new = np.zeros(int(len(ar)/2)*int(len(ar[0])/2))
+    new = np.reshape(new,(int(len(ar)/2),int(len(ar[0])/2)))
     for i in range(len(new)):
         for j in range(len(new[0])):
-            new[i][j][0]=(ar[2*i][2*j][0]+ar[2*i+1][2*j][0]+ar[2*i][2*j+1][0]+ar[2*i+1][2*j+1][0])/4
-            new[i][j][1] = (ar[2 * i][2 * j][1] + ar[2 * i + 1][2 * j][1] + ar[2 * i][2 * j + 1][1] + ar[2 * i + 1][2 * j + 1][1]) / 4
-            new[i][j][2] = (ar[2 * i][2 * j][2] + ar[2 * i + 1][2 * j][2] + ar[2 * i][2 * j + 1][2] + ar[2 * i + 1][2 * j + 1][2]) / 4
+            new[i][j]=(ar[2*i][2*j]+ar[2*i+1][2*j]+ar[2*i][2*j+1]+ar[2*i+1][2*j+1])/4
     return new
 def amsampling(ar):
-    new = np.zeros(len(ar)*2*len(ar[0])*2*3)
-    new = np.reshape(new,(len(ar)*2,len(ar[0])*2,3))
+    new = np.zeros(len(ar)*2*len(ar[0])*2)
+    new = np.reshape(new,(len(ar)*2,len(ar[0])*2))
     for i in range(len(new)):
         for j in range(len(new[0])):
-            new[i][j][0] = ar[i//2][j//2][0]
-            new[i][j][1] = ar[i//2][j//2][1]
-            new[i][j][2] = ar[i//2][j//2][2]
+            new[i][j] = ar[i//2][j//2]
     return new
 def diag(ar):
     s = []
@@ -100,19 +96,17 @@ def matri(s,l,n):
         diag += 1
     return np.int32(ar)
 def ycbcrtorgb(ar):
-    r = np.zeros(len(ar)*len(ar[0]))
-    g = np.zeros(len(ar)*len(ar[0]))
-    b = np.zeros(len(ar)*len(ar[0]))
+    r = np.zeros(len(ar)*len(ar[0])*3)
+    r = np.reshape(r,(len(ar),len(ar[0]),3))
     for i in range(len(ar)):
         for j in range(len(ar[0])):
             # r[j+i*len(ar[0])] = (ar[i][j][0]-16) * 0.774 - 0.456 * (ar[i][j][1]-128) + 1.597 * (ar[i][j][2]-128)
             # g[j+i*len(ar[0])] = (ar[i][j][0]-16) * 1.116 - 0.16 * (ar[i][j][1]-128) - 0.814 * (ar[i][j][2]-128)
             # b[j+i*len(ar[0])] = (ar[i][j][0]-16) * 0.998 + 2.019 * (ar[i][j][1]-128) + 9.12 * (ar[i][j][2]-128)
-            r[j + i * len(ar[0])] = ar[i][j][0] + 1.402 * (ar[i][j][2] - 128)
-            g[j + i * len(ar[0])] = ar[i][j][0] - 0.344 * (ar[i][j][1] - 128) - 0.714 * (
-                        ar[i][j][2] - 128)
-            b[j + i * len(ar[0])] = ar[i][j][0] + 1.772 * (ar[i][j][1] - 128)
-    return r,g,b
+            r[i][j][0] = (ar[i][j][0]-16) * 0.774 - 0.456 * (ar[i][j][1]-128) + 1.597 * (ar[i][j][2]-128)+10
+            r[i][j][1] = ar[i][j][0] - 0.344 * (ar[i][j][1] - 128) - 0.714 * (ar[i][j][2] - 128)
+            r[i][j][2] = ar[i][j][0] + 1.772 * (ar[i][j][1] - 128) + 0.00000041 * (ar[i][j][2] - 128)
+    return r
 
 def DCT(ar):
     n = 8
@@ -197,10 +191,9 @@ def Blocks(arr, n = 8, k = 8):
 
 def Merge(arr, n, k):
     new = np.array(arr)
-    # print(array)
     h, r, c = new.shape
     ret = []
-    for i in range(n // r):
+    for i in range((n // r)):
         subarray = tuple(new[i * (k // r):(i + 1) * (k // r)])
         # print(subarray)
         ret.append(np.concatenate(subarray, axis=1))
@@ -216,19 +209,19 @@ def GetResultArrays(__path, qual):
     #     img = np.pad(img, ((0, 0), (0, 16 - j % 16), (0, 0)), 'constant')
     # img2 = np.uint8(downsamplingapprox(img))
     img = Image.open(__path)
-    img = img.resize((800,800))
     img = np.array(img)
-    img2 = np.uint8(downsamplingapprox(img))
-    Y,Cb,Cr = rgbtoycbcr(img2)
-    Y = Y - 128
-    Cb = Cb - 128
-    Cr = Cr - 128
-    Y = np.reshape(Y,(len(img2),len(img2[0])))
-    Cb = np.reshape(Cb, (len(img2), len(img2[0])))
-    Cr = np.reshape(Cr, (len(img2), len(img2[0])))
-    Y = Blocks(Y)
+    Y,Cb,Cr = rgbtoycbcr(img)
+    Y = np.reshape(Y, (len(img), len(img[0])))
+    Cb = np.reshape(Cb, (len(img), len(img[0])))
+    Cr = np.reshape(Cr, (len(img), len(img[0])))
+    Cb = np.int32(downsamplingapprox(Cb))
+    Cr =  np.int32(downsamplingapprox(Cr))
+    Cb = Cb-128
+    Cr = Cr-128
+    Y = np.int32(Y)-128
     Cb = Blocks(Cb)
     Cr = Blocks(Cr)
+    Y = Blocks(Y)
     resY = []
     resCb = []
     resCr = []
@@ -245,7 +238,7 @@ def GetResultArrays(__path, qual):
         Cr[i] = Quantize(Cr[i], False, Q=qual)
         resCr.append(diag(Cr[i]))
     # print(len(img2), len(img2[0]))
-    return resY, resCb, resCr, len(img2), len(img2[0])
+    return resY, resCb, resCr, len(img)//2, len(img[0])//2
 
 # вывод изображения из полученных массивов
 def FromResultArrays(Yr, Cbr, Crr, hor, ver, qual):
@@ -256,63 +249,74 @@ def FromResultArrays(Yr, Cbr, Crr, hor, ver, qual):
     # print(zigzag.inverseZigZag(resYc[0], 8))
     for i in range(len(Y)):
         Y[i] = matri(Yr[i], 8, 8)
-        Y[i] = np.int16(Y[i])
+        Y[i] = np.int32(Y[i])
         Y[i] = Dequantize(Y[i], Q=qual)
         Y[i] = BackDCT(Y[i])
         # Yc.append(a)
     for i in range(len(Cb)):
         Cb[i] = matri(Cbr[i], 8,8)
-        Cb[i] = np.int16(Cb[i])
+        Cb[i] = np.int32(Cb[i])
         Cb[i] = Dequantize(Cb[i], False, Q=qual)
         Cb[i] = BackDCT(Cb[i])
         # Cb.append(a)
     for i in range(len(Cr)):
-        Cr[i] = matri(Crr[i], 8)
-        Cr[i] = np.int16(Cr[i])
+        Cr[i] = matri(Crr[i], 8,8)
+        Cr[i] = np.int32(Cr[i])
         Cr[i] = Dequantize(Cr[i], False, Q=qual)
         Cr[i] = BackDCT(Cr[i])
         # Cr.append(a)
 
-    Yc = np.array(Y)
+    Y = np.array(Y)
     Cb = np.array(Cb)
     Cr = np.array(Cr)
-    Yc = Merge(Y, ver, hor)
-    Cb = Merge(Cb, ver // 2, hor // 2)
-    Cr = Merge(Cr, ver // 2, hor // 2)
+    Yc = Merge(Y, ver*2, hor*2)
+    Cb = Merge(Cb, ver, hor)
+    Cr = Merge(Cr, ver, hor)
 
-    img3 = np.zeros((len(Cb), len(Cb[0]), 3), dtype=np.uint8)
-    r,g,b  = ycbcrtorgb(np.array(img3) + 128)
-    img3[:, :, 1] = g
-    img3[:, :, 2] = b
-    img3[:, :, 0] = r
-    img3 = amsampling(img3)
-    img3 = np.array(img3) + 128
+    img3 = []
+    Cb = amsampling(Cb)
+    Cr = amsampling(Cr)
+    for i in range(len(Yc)):
+        for j in range(len(Yc[0])):
+            img3.append([Yc[i][j],Cb[i][j],Cr[i][j]])
+    img3 = np.array(img3).reshape((len(Yc),len(Yc[0]),3))
+    img3 = ycbcrtorgb(img3 + 128)
+    img3 = np.array(img3)
     # img2 = np.concatenate((Yc, Cb, Cr), axis=3)
-    img = Image.fromarray(img3, mode="RGB")
+    img = Image.fromarray(img3.astype(np.uint8), mode="RGB")
     img.show()
+    img.save('pic1.jpeg')
 
 # кодирование и декодирование RLE
-def run_length_encoding(string):
-    encoded = ''
+def run_length_encoding(s):
+    encoded = []
     count = 1
     flag = chr(256)
-    strlen = len(string)
+    strlen = len(s)
     for i in range(1, strlen):
-        if (i % 50000 == 0): print(i)
-        if string[i] == string[i - 1]:
+        if s[i] == s[i - 1]:
             count += 1
         else:
-            if count < 4:
-                encoded += count * string[i - 1]
+            if count == 1:
+                encoded.append(s[i - 1])
             else:
-                encoded += flag + chr(count) + string[i - 1]
+                encoded.append(count)
+                encoded.append(-1)
+                encoded.append(s[i - 1])
             count = 1
-    if count < 4:
-        encoded += count * string[len(string) - 1]
+    if count == 1:
+        encoded.append(s[len(s) - 1])
     else:
-        encoded += flag + chr(count) + string[len(string) - 1]
-
-    return encoded
+        encoded.append(count)
+        encoded.append(-1)
+        encoded.append(s[len(s) - 1])
+    res = ''
+    for i in encoded:
+        if (i>=0):
+            res+=str(i)+' '
+        else:
+            res += flag
+    return res
 
 
 def run_length_decoding(string):
@@ -320,18 +324,20 @@ def run_length_decoding(string):
     flag = chr(256)
     i = 0
     strlen = len(string)
-    for i in range(strlen):
-        if (i % 50000 == 0): print(i)
-        if i >= 1 and (string[i - 1] == flag or string[i - 2] == flag):
-            continue
-        if string[i] == flag:
-            decoded += (ord(string[i + 1])) * string[i + 2]
-            # i += 2
+    while (i < (strlen-1)):
+        if (i!=0)and(string[i] == flag):
+            r = l = 0
+            while(string[i+r]!=' ')and((i+r)<len(string)-1):
+                r+=1
+            while (string[i - 2 - l] != ' ')and(i - 1 - l>0):
+                l+=1
+            decoded = decoded[:(len(decoded)-1-l)]
+            decoded += int(string[(i - 1 - l):(i - 1)]) * (string[(i + 1):(i + r)]+' ')
+            i+=r+1
         else:
             decoded += string[i]
-            # i += 1
+            i+=1
     return decoded
-
 
 # сжатие изображения и запись его в файл
 def Compress(__path, qual):
@@ -341,21 +347,17 @@ def Compress(__path, qual):
     print(len(Yr), len(Cbr), len(Crr))
     eY = []
     for i in Yr:
-        eY += [j + 128 for j in i]
-    eY = ''.join([str(i) for i in eY])
-    # eY = ''.join([chr(i) for i in eY])
+        eY += [int(j) + 128 for j in i]
     eY = run_length_encoding(eY)
-
+    # eY = ''.join([chr(i) for i in eY])
     eCb = []
     for i in Cbr:
-        eCb += [j + 128 for j in i]
-    eCb = ''.join([str(i) for i in eCb])
+        eCb += [int(j) + 128 for j in i]
     eCb = run_length_encoding(eCb)
 
     eCr = []
     for i in Crr:
-        eCr += [j + 128 for j in i]
-    eCr = ''.join([str(i) for i in eCr])
+        eCr += [int(j) + 128 for j in i]
     eCr = run_length_encoding(eCr)
     print(len(eY), len(eCb), len(eCr))
     leny = len(eY).to_bytes(4, byteorder='big')
@@ -388,27 +390,34 @@ def Show(__path):
     eCr = data[leny + lencb:leny + lencb + lencr]
     print(leny, lencb, lencr)
     img2v, img2h = vert, hor
-    resYc = []
-    resCb = []
-    resCr = []
     eY = run_length_decoding(eY)
     eCb = run_length_decoding(eCb)
     eCr = run_length_decoding(eCr)
-    for i in eY:
-        resYc += [ord(i) - 128]
-    for i in eCb:
-        resCb += [ord(i) - 128]
-    for i in eCr:
-        resCr += [ord(i) - 128]
+    res1 = list(map(int, eY.split()))
+    res2 = list(map(int, eCb.split()))
+    res3 = list(map(int, eCr.split()))
+    resCb = []
+    resYc = []
+    resCr = []
+    for i in res1:
+        resYc += [i - 128]
+    for i in res2:
+        resCb += [i - 128]
+    for i in res3:
+        resCr += [i - 128]
     print(len(resYc), len(resCb), len(resCr))
     if len(resYc) % 64 != 0:
         resYc += [0] * (64 - len(resYc) % 64)
     resYc = [resYc[i:i + 64] for i in range(0, len(resYc), 64)]
     resCb = [resCb[i:i + 64] for i in range(0, len(resCb), 64)]
     resCr = [resCr[i:i + 64] for i in range(0, len(resCr), 64)]
-    FromResultArrays(resYc, resCb, resCr, img2h * 2, img2v * 2, qual)
+    FromResultArrays(resYc, resCb, resCr, img2h, img2v, qual)
 
-Compress("lena.jpg", 99)
+# Compress("nelena.jpg", 80)
+# Show("compressed.bin")
+# Compress("pink.jpg", 80)
+# Show("compressed.bin")
+Compress("rand.jpeg", 80)
 Show("compressed.bin")
 
 # img = img.resize((400,400))
