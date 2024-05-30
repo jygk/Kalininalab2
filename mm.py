@@ -100,12 +100,12 @@ def ycbcrtorgb(ar):
     r = np.reshape(r,(len(ar),len(ar[0]),3))
     for i in range(len(ar)):
         for j in range(len(ar[0])):
-            # r[j+i*len(ar[0])] = (ar[i][j][0]-16) * 0.774 - 0.456 * (ar[i][j][1]-128) + 1.597 * (ar[i][j][2]-128)
-            # g[j+i*len(ar[0])] = (ar[i][j][0]-16) * 1.116 - 0.16 * (ar[i][j][1]-128) - 0.814 * (ar[i][j][2]-128)
-            # b[j+i*len(ar[0])] = (ar[i][j][0]-16) * 0.998 + 2.019 * (ar[i][j][1]-128) + 9.12 * (ar[i][j][2]-128)
-            r[i][j][0] = (ar[i][j][0]-16) * 0.774 - 0.456 * (ar[i][j][1]-128) + 1.597 * (ar[i][j][2]-128)+10
-            r[i][j][1] = ar[i][j][0] - 0.344 * (ar[i][j][1] - 128) - 0.714 * (ar[i][j][2] - 128)
-            r[i][j][2] = ar[i][j][0] + 1.772 * (ar[i][j][1] - 128) + 0.00000041 * (ar[i][j][2] - 128)
+            r[i][j][0] = (ar[i][j][0]-16) * 70406500/91008499 - (ar[i][j][1]-128) * 41464000/91008499 + (ar[i][j][2]-128) * 145376500/91008499
+            r[i][j][1] = (ar[i][j][0]-16) * 101540500/91008499 - (ar[i][j][1]-128) * 14558000/91008499 - (ar[i][j][2]-128) * 74066500/91008499
+            r[i][j][2] = (ar[i][j][0]-16) * 90813000/91008499 + (ar[i][j][1]-128) * 183713000/91008499 + (ar[i][j][2]-128) * 83000/91008499
+            # r[i][j][0] = (ar[i][j][0]-16) * 0.774 - 0.456 * (ar[i][j][1]-128) + 1.597 * (ar[i][j][2]-128)+10
+            # r[i][j][1] = ar[i][j][0] - 0.344 * (ar[i][j][1] - 128) - 0.714 * (ar[i][j][2] - 128)
+            # r[i][j][2] = ar[i][j][0] + 1.772 * (ar[i][j][1] - 128) + 0.00000041 * (ar[i][j][2] - 128)
     return r
 
 def DCT(ar):
@@ -145,7 +145,7 @@ chromQ = np.array([[17, 18, 24, 47, 99, 99, 99, 99],
     [99, 99, 99, 99, 99, 99, 99, 99],
     [99, 99, 99, 99, 99, 99, 99, 99],
     [99, 99, 99, 99, 99, 99, 99, 99]])
-def GetQuantMatrix(quality, isL = True):
+def QMatrix(quality, isL = True):
     scaleFactor = 5000 / quality if quality <= 50 else 200 - quality * 2
     if isL:
         lQM = lumQ.copy()
@@ -162,18 +162,18 @@ def GetQuantMatrix(quality, isL = True):
 
 # Квантование и обратное квантование
 def Quantize(Cdct, isL = True, Q = 50):
-    quant = GetQuantMatrix(Q, isL) if isL else GetQuantMatrix(50, False)
+    quant = QMatrix(Q, isL) if isL else QMatrix(50, False)
     for i in range(8):
         for j in range(8):
             Cdct[i][j] = np.round(Cdct[i][j] / quant[i][j])
-    return np.int8(np.matrix.round(Cdct, 0))
+    return np.int32(np.matrix.round(Cdct, 0))
 
 def Dequantize(Cdct, isLuminance = True, Q = 50):
-    quantMatrix = GetQuantMatrix(Q, isLuminance) if isLuminance else GetQuantMatrix(50, False)
+    quant = QMatrix(Q, isLuminance) if isLuminance else QMatrix(50, False)
     Cdct = np.float32(Cdct)
     for i in range(8):
         for j in range(8):
-            Cdct[i][j] = np.round(Cdct[i][j] * quantMatrix[i][j])
+            Cdct[i][j] = np.round(Cdct[i][j] * quant[i][j])
     return Cdct
 
 
@@ -200,7 +200,7 @@ def Merge(arr, n, k):
         # print(ret)
     ret = np.concatenate(ret, axis=0)
     return ret
-def GetResultArrays(__path, qual):
+def Result(__path, qual):
     # img = rgbtoycbcr(np.array(Image.open(__path)))
     # i, j, k = img.shape
     # if i % 16 != 0:
@@ -241,7 +241,7 @@ def GetResultArrays(__path, qual):
     return resY, resCb, resCr, len(img)//2, len(img[0])//2
 
 # вывод изображения из полученных массивов
-def FromResultArrays(Yr, Cbr, Crr, hor, ver, qual):
+def BackResult(Yr, Cbr, Crr, hor, ver, qual):
     Y = [None for i in range(len(Yr))]
     Cb = [None for i in range(len(Cbr))]
     Cr = [None for i in range(len(Crr))]
@@ -288,7 +288,7 @@ def FromResultArrays(Yr, Cbr, Crr, hor, ver, qual):
     img.save('pic1.jpeg')
 
 # кодирование и декодирование RLE
-def run_length_encoding(s):
+def rle(s):
     encoded = []
     count = 1
     flag = chr(256)
@@ -301,25 +301,25 @@ def run_length_encoding(s):
                 encoded.append(s[i - 1])
             else:
                 encoded.append(count)
-                encoded.append(-1)
+                encoded.append(flag)
                 encoded.append(s[i - 1])
             count = 1
     if count == 1:
         encoded.append(s[len(s) - 1])
     else:
         encoded.append(count)
-        encoded.append(-1)
+        encoded.append(flag)
         encoded.append(s[len(s) - 1])
     res = ''
     for i in encoded:
-        if (i>=0):
-            res+=str(i)+' '
-        else:
+        if (i==flag):
             res += flag
+
+        else:
+            res += str(i) + ' '
     return res
 
-
-def run_length_decoding(string):
+def rld(string):
     decoded = ''
     flag = chr(256)
     i = 0
@@ -341,24 +341,24 @@ def run_length_decoding(string):
 
 # сжатие изображения и запись его в файл
 def Compress(__path, qual):
-    Yr, Cbr, Crr, img2v, img2h = GetResultArrays(__path, qual)
+    Yr, Cbr, Crr, img2v, img2h = Result(__path, qual)
     # print(resYc)
     # print(len(resYc), len(resYc[0]))
     print(len(Yr), len(Cbr), len(Crr))
     eY = []
     for i in Yr:
         eY += [int(j) + 128 for j in i]
-    eY = run_length_encoding(eY)
+    eY = rle(eY)
     # eY = ''.join([chr(i) for i in eY])
     eCb = []
     for i in Cbr:
         eCb += [int(j) + 128 for j in i]
-    eCb = run_length_encoding(eCb)
+    eCb = rle(eCb)
 
     eCr = []
     for i in Crr:
         eCr += [int(j) + 128 for j in i]
-    eCr = run_length_encoding(eCr)
+    eCr = rle(eCr)
     print(len(eY), len(eCb), len(eCr))
     leny = len(eY).to_bytes(4, byteorder='big')
     lencb = len(eCb).to_bytes(4, byteorder='big')
@@ -369,12 +369,12 @@ def Compress(__path, qual):
     data = eY + eCb + eCr
     data = data.encode('utf-8')
     data = leny + lencb + lencr + quality + hor + vert + data
-    with open('compressed.bin', 'wb') as f:
+    with open('cmprs.bin', 'wb') as f:
         f.write(data)
         f.close()
 
 # распаковка изображения
-def Show(__path):
+def Decompress(__path):
     with open(__path, 'rb') as f:
         data = f.read()
         f.close()
@@ -390,9 +390,9 @@ def Show(__path):
     eCr = data[leny + lencb:leny + lencb + lencr]
     print(leny, lencb, lencr)
     img2v, img2h = vert, hor
-    eY = run_length_decoding(eY)
-    eCb = run_length_decoding(eCb)
-    eCr = run_length_decoding(eCr)
+    eY = rld(eY)
+    eCb = rld(eCb)
+    eCr = rld(eCr)
     res1 = list(map(int, eY.split()))
     res2 = list(map(int, eCb.split()))
     res3 = list(map(int, eCr.split()))
@@ -411,14 +411,30 @@ def Show(__path):
     resYc = [resYc[i:i + 64] for i in range(0, len(resYc), 64)]
     resCb = [resCb[i:i + 64] for i in range(0, len(resCb), 64)]
     resCr = [resCr[i:i + 64] for i in range(0, len(resCr), 64)]
-    FromResultArrays(resYc, resCb, resCr, img2h, img2v, qual)
+    BackResult(resYc, resCb, resCr, img2h, img2v, qual)
 
-# Compress("nelena.jpg", 80)
-# Show("compressed.bin")
-# Compress("pink.jpg", 80)
-# Show("compressed.bin")
-Compress("rand.jpeg", 80)
-Show("compressed.bin")
+# Compress("nelena.jpg", 50)
+# Decompress("cmprs.bin")
+# Compress("pink.jpg", 50)
+# Decompress("cmprs.bin")
+Compress("rand.jpeg", 50)
+Decompress("cmprs.bin")
+
+# img = Image.open("nelena.jpg")
+# img = np.array(img)
+# img1 = []
+# y,cb,cr = rgbtoycbcr(img)
+# y = np.reshape(y,(len(img),len(img[0])))
+# cb = np.reshape(cb,(len(img),len(img[0])))
+# cr = np.reshape(cr,(len(img),len(img[0])))
+# for i in range(len(img)):
+#     for j in range(len(img[0])):
+#         img1.append([y[i][j], cb[i][j], cr[i][j]])
+# img1 = np.reshape(img1, (len(img), len(img[0]),3))
+# img1 = ycbcrtorgb(img1)
+# img1 = Image.fromarray(img1.astype(np.uint8), mode='RGB')
+# img1.show()
+
 
 # img = img.resize((400,400))
 # arr = imgtoraw(img)
